@@ -89,7 +89,7 @@ io.on('connection', (socket) => {
             charId: charId,
             x: 850,
             y: 850,
-            score: 1000
+            score: 0
         };
 
         io.to(room.password ? socket.data.roomId : socket.data.roomId).emit('updatePlayers', room.players);

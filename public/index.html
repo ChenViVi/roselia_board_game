@@ -116,7 +116,7 @@
             </div>
 
             <div id="score-container">
-                <h3 style="font-size: 16px; margin: 5px 0;">📊 实时积分榜</h3>
+                <h3 style="font-size: 16px; margin: 5px 0;">📊 角色不可崩排行榜</h3>
                 <div id="score-list"></div>
             </div>
         </div>
@@ -319,7 +319,7 @@
             
             let ctrlHtml = '';
             if (isMe) {
-                ctrlHtml = `<button class="btn btn-xs score-ctrl" onclick="modifyScore()">变动</button>`;
+                ctrlHtml = `<button class="btn btn-xs score-ctrl" onclick="modifyScore()">修改</button>`;
             }
 
             item.innerHTML = `
