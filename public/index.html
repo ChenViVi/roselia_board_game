@@ -1,406 +1,328 @@
 <!DOCTYPE html>
 <html lang="zh">
-
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>恶魔之路</title>
     <style>
-        body {
-            margin: 0;
-            overflow: hidden;
-            font-family: 'Microsoft YaHei', sans-serif;
-            background: #222;
-        }
+        body { margin: 0; overflow: hidden; font-family: 'Microsoft YaHei', sans-serif; background: #222; }
+        #game-container { display: flex; height: 100vh; filter: blur(0px); transition: 0.3s; }
+        #canvas-container { flex: 1; overflow: auto; position: relative; background: #333; }
+        canvas { display: block; box-shadow: 0 0 20px rgba(0,0,0,0.5); cursor: default; } /* 默认不可拖拽，玩家模式下改为grab */
+        
+        #sidebar { width: 320px; background: #f9f9f9; padding: 15px; box-shadow: -2px 0 10px rgba(0,0,0,0.2); display: flex; flex-direction: column; z-index: 10; }
+        
+        h2 { margin-top: 0; color: #333; text-align: center; font-size: 20px; }
+        .room-info { font-size: 12px; color: #666; text-align: center; margin-bottom: 10px; background: #eee; padding: 5px; border-radius: 4px;}
 
-        #game-container {
-            display: flex;
-            height: 100vh;
-        }
+        .char-select { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-bottom: 10px; }
+        .char-btn { border: 2px solid #ccc; border-radius: 50%; cursor: pointer; overflow: hidden; width: 60px; height: 60px; transition: 0.2s; position: relative; }
+        .char-btn img { width: 100%; height: 100%; object-fit: cover; }
+        .char-btn.selected { border-color: #e91e63; transform: scale(1.1); box-shadow: 0 0 10px #e91e63; }
+        .char-btn.taken { opacity: 0.3; cursor: not-allowed; filter: grayscale(100%); }
+        .char-btn.taken::after { content: '占用'; position: absolute; top: 20px; left: 0; right: 0; text-align: center; color: white; font-size: 10px; background: rgba(0,0,0,0.5); }
 
-        #canvas-container {
-            flex: 1;
-            overflow: auto;
-            position: relative;
-            background: #333;
-        }
+        #status-area { flex: 1; overflow-y: auto; }
+        
+        .btn { width: 100%; padding: 10px; margin-top: 5px; border: none; border-radius: 5px; color: white; font-size: 14px; cursor: pointer; }
+        .btn-primary { background: #2196F3; }
+        .btn-success { background: #4CAF50; }
+        .btn-danger { background: #f44336; }
+        .btn:disabled { background: #ccc; cursor: not-allowed; }
 
-        canvas {
-            display: block;
-            box-shadow: 0 0 20px rgba(0, 0, 0, 0.5);
-            cursor: grab;
-        }
+        #dice-result { font-size: 22px; font-weight: bold; text-align: center; margin: 15px 0; color: #e91e63; min-height: 30px; }
+        #turn-indicator { text-align: center; font-weight: bold; margin-bottom: 10px; padding: 10px; background: #ddd; border-radius: 5px; font-size: 14px;}
+        .my-turn { background: #d1c4e9 !important; border: 2px solid #673ab7; }
 
-        canvas:active {
-            cursor: grabbing;
-        }
+        #score-container { margin-top: 20px; border-top: 2px solid #eee; padding-top: 10px; }
+        .score-item { display: flex; align-items: center; background: #fff; border-bottom: 1px solid #eee; padding: 8px 5px; }
+        .score-item img { width: 30px; height: 30px; border-radius: 50%; margin-right: 10px; border: 1px solid #ccc;}
+        .score-info { flex: 1; font-size: 14px; }
+        .score-val { font-weight: bold; color: #E65100; font-size: 16px; }
+        .score-ctrl { margin-left: 5px; }
+        .btn-xs { padding: 4px 8px; font-size: 12px; background: #607D8B; width: auto; margin-top: 0;}
 
-        /* 侧边栏样式调整 */
-        #sidebar {
-            width: 320px;
-            background: #f9f9f9;
-            padding: 15px;
-            box-shadow: -2px 0 10px rgba(0, 0, 0, 0.2);
-            display: flex;
-            flex-direction: column;
-            z-index: 10;
-        }
+        #ad-area { margin-top: auto; padding-top: 15px; border-top: 2px solid #ddd; text-align: center; }
+        .ad-link { display: block; margin-bottom: 8px; padding: 10px; background: #ffeb3b; color: #d81b60; text-decoration: none; font-weight: bold; border-radius: 8px; border: 2px dashed #f57f17; transition: 0.2s; }
+        .ad-link:hover { background: #fff176; transform: translateY(-2px); }
 
-        h2 {
-            margin-top: 0;
-            color: #333;
-            text-align: center;
-            font-size: 20px;
-        }
-
-        .char-select {
-            display: grid;
-            grid-template-columns: repeat(3, 1fr);
-            gap: 10px;
-            margin-bottom: 10px;
-        }
-
-        .char-btn {
-            border: 2px solid #ccc;
-            border-radius: 50%;
-            cursor: pointer;
-            overflow: hidden;
-            width: 60px;
-            height: 60px;
-            transition: 0.2s;
-        }
-
-        .char-btn img {
-            width: 100%;
-            height: 100%;
-            object-fit: cover;
-        }
-
-        .char-btn.selected {
-            border-color: #e91e63;
-            transform: scale(1.1);
-            box-shadow: 0 0 10px #e91e63;
-        }
-
-        .char-btn.taken {
-            opacity: 0.3;
-            cursor: not-allowed;
-            filter: grayscale(100%);
-        }
-
-        #status-area {
-            flex: 1;
-            overflow-y: auto;
-        }
-
-        /* 让中间内容可滚动 */
-
-        .btn {
-            width: 100%;
-            padding: 10px;
-            margin-top: 5px;
-            border: none;
-            border-radius: 5px;
-            color: white;
-            font-size: 14px;
-            cursor: pointer;
-        }
-
-        .btn-primary {
-            background: #2196F3;
-        }
-
-        .btn-success {
-            background: #4CAF50;
-        }
-
-        .btn-danger {
-            background: #f44336;
-        }
-
-        .btn:disabled {
-            background: #ccc;
-            cursor: not-allowed;
-        }
-
-        #dice-result {
-            font-size: 22px;
-            font-weight: bold;
-            text-align: center;
-            margin: 15px 0;
-            color: #e91e63;
-            min-height: 30px;
-        }
-
-        #turn-indicator {
-            text-align: center;
-            font-weight: bold;
-            margin-bottom: 10px;
-            padding: 10px;
-            background: #ddd;
-            border-radius: 5px;
-            font-size: 14px;
-        }
-
-        .my-turn {
-            background: #d1c4e9 !important;
-            border: 2px solid #673ab7;
-        }
-
-        /* --- 新增：积分榜样式 --- */
-        #score-container {
-            margin-top: 20px;
-            border-top: 2px solid #eee;
-            padding-top: 10px;
-        }
-
-        .score-item {
-            display: flex;
-            align-items: center;
-            background: #fff;
-            border-bottom: 1px solid #eee;
-            padding: 8px 5px;
-        }
-
-        .score-item img {
-            width: 30px;
-            height: 30px;
-            border-radius: 50%;
-            margin-right: 10px;
-            border: 1px solid #ccc;
-        }
-
-        .score-info {
-            flex: 1;
-            font-size: 14px;
-        }
-
-        .score-val {
-            font-weight: bold;
-            color: #E65100;
-            font-size: 16px;
-        }
-
-        .score-ctrl {
-            margin-left: 5px;
-        }
-
-        .btn-xs {
-            padding: 4px 8px;
-            font-size: 12px;
-            background: #607D8B;
-            width: auto;
-            margin-top: 0;
-        }
-
-        /* --- 新增：广告链接区域样式 --- */
-        #ad-area {
-            margin-top: auto;
-            padding-top: 15px;
-            border-top: 2px solid #ddd;
-            text-align: center;
-        }
-
-        .ad-link {
-            display: block;
-            margin-bottom: 8px;
-            padding: 10px;
-            background: #ffeb3b;
-            /* 醒目的黄色背景 */
-            color: #d81b60;
-            text-decoration: none;
-            font-weight: bold;
-            border-radius: 8px;
-            border: 2px dashed #f57f17;
-            transition: 0.2s;
-        }
-
-        .ad-link:hover {
-            background: #fff176;
-            transform: translateY(-2px);
-        }
+        /* --- 登录层样式 --- */
+        #login-screen { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.85); z-index: 100; display: flex; justify-content: center; align-items: center; }
+        .login-box { background: white; padding: 30px; border-radius: 10px; width: 300px; text-align: center; box-shadow: 0 0 20px rgba(0,0,0,0.5); }
+        .login-box h1 { margin-top: 0; color: #e91e63; }
+        .input-group { margin-bottom: 15px; text-align: left; }
+        .input-group label { display: block; margin-bottom: 5px; color: #666; }
+        .input-group input { width: 100%; padding: 10px; box-sizing: border-box; border: 1px solid #ccc; border-radius: 5px; font-size: 16px; }
+        .login-btns { display: flex; gap: 10px; }
+        .err-msg { color: red; margin-top: 10px; font-size: 14px; min-height: 20px; }
     </style>
 </head>
-
 <body>
 
-    <div id="game-container">
-        <div id="canvas-container">
-            <canvas id="gameCanvas"></canvas>
+<!-- 登录/大厅层 -->
+<div id="login-screen">
+    <div class="login-box">
+        <h1>恶魔之路</h1>
+        <div class="input-group">
+            <label>房间号</label>
+            <input type="text" id="room-id" placeholder="例如: roseia">
         </div>
-        <div id="sidebar">
-            <h2>恶魔之路</h2>
+        <div class="input-group">
+            <label>房间密码</label>
+            <input type="password" id="room-pass" placeholder="可选密码">
+        </div>
+        <div class="login-btns">
+            <button class="btn btn-primary" onclick="doJoin()">加入房间</button>
+            <button class="btn btn-success" onclick="doCreate()">创建房间</button>
+        </div>
+        <div class="err-msg" id="login-msg"></div>
+        <p style="font-size:12px; color:#999; margin-top:15px;">* 加入即可观战，选人后参与游戏</p>
+    </div>
+</div>
 
-            <div id="status-area">
-                <!-- 选人界面 -->
-                <div id="lobby-ui">
-                    <p>请选择角色:</p>
-                    <div class="char-select" id="char-list"></div>
-                    <button id="start-btn" class="btn btn-primary" disabled>开始游戏</button>
-                </div>
-
-                <!-- 游戏操作界面 -->
-                <div id="game-ui" style="display: none;">
-                    <div id="turn-indicator">等待开始...</div>
-
-                    <div id="controls">
-                        <div style="display:flex; gap:5px;">
-                            <button class="btn btn-primary" onclick="rollDice(1)">🎲 1个</button>
-                            <button class="btn btn-primary" onclick="rollDice(2)">🎲🎲 2个</button>
-                        </div>
-                    </div>
-
-                    <div id="dice-result"></div>
-                    <button id="end-turn-btn" class="btn btn-success" onclick="endTurn()" disabled>结束回合</button>
-                </div>
-
-                <!-- --- 新增：积分榜区域 --- -->
-                <div id="score-container">
-                    <h3 style="font-size: 16px; margin: 5px 0;">📊 角色不可崩点数排行榜</h3>
-                    <div id="score-list">
-                        <!-- JS 动态生成 -->
-                    </div>
-                </div>
+<div id="game-container">
+    <div id="canvas-container">
+        <canvas id="gameCanvas"></canvas>
+    </div>
+    <div id="sidebar">
+        <h2>恶魔之路</h2>
+        <div class="room-info" id="room-display">未连接</div>
+        
+        <div id="status-area">
+            <!-- 选人界面 -->
+            <div id="lobby-ui">
+                <p>请选择角色加入游戏:</p>
+                <div class="char-select" id="char-list"></div>
+                <div id="spectator-hint" style="font-size:12px; color:#666; display:none;">游戏进行中，当前为观战模式</div>
+                <button id="start-btn" class="btn btn-primary" disabled>开始游戏</button>
             </div>
 
-            <!-- --- 新增：广告链接区域 --- -->
-            <div id="ad-area">
-                <a href="https://docs.qq.com/markdown/DTENqRVpxR0tUeFNE" target="_blank" class="ad-link">
-                    规则书（国内也可访问）
-                </a>
-                <a href="https://github.com/ChenViVi/roselia_board_game/" target="_blank" class="ad-link">
-                    Github仓库
-                </a>
+            <!-- 游戏操作界面 -->
+            <div id="game-ui" style="display: none;">
+                <div id="turn-indicator">等待开始...</div>
+                
+                <!-- 只有玩家才显示的控制区 -->
+                <div id="controls">
+                    <div style="display:flex; gap:5px;">
+                        <button class="btn btn-primary" onclick="rollDice(1)">🎲 1个</button>
+                        <button class="btn btn-primary" onclick="rollDice(2)">🎲🎲 2个</button>
+                    </div>
+                </div>
+                
+                <div id="dice-result"></div>
+                <button id="end-turn-btn" class="btn btn-success" onclick="endTurn()" disabled>结束回合</button>
+                
+                <p id="spectator-msg" style="color:#e91e63; display:none; text-align:center;">正在观战中...</p>
             </div>
 
+            <div id="score-container">
+                <h3 style="font-size: 16px; margin: 5px 0;">📊 实时积分榜</h3>
+                <div id="score-list"></div>
+            </div>
+        </div>
+
+        <div id="ad-area">
+            <a href="https://docs.qq.com/markdown/DTENqRVpxR0tUeFNE" target="_blank" class="ad-link">规则书（国内也可访问）</a>
+            <a href="https://github.com/ChenViVi/roselia_board_game/" target="_blank" class="ad-link">Github仓库</a>
         </div>
     </div>
+</div>
 
-    <script src="/socket.io/socket.io.js"></script>
-    <script>
-        const socket = io();
-        const canvas = document.getElementById('gameCanvas');
-        const ctx = canvas.getContext('2d');
+<script src="/socket.io/socket.io.js"></script>
+<script>
+    const socket = io();
+    const canvas = document.getElementById('gameCanvas');
+    const ctx = canvas.getContext('2d');
+    
+    // 资源加载
+    const mapImg = new Image(); mapImg.src = 'map.png';
+    const charImgs = {};
+    for(let i=1; i<=5; i++) {
+        charImgs[i] = new Image(); charImgs[i].src = `char${i}.png`;
+    }
 
-        const mapImg = new Image(); mapImg.src = 'map.png';
-        const charImgs = {};
-        for (let i = 1; i <= 5; i++) {
-            charImgs[i] = new Image(); charImgs[i].src = `char${i}.png`;
-        }
+    // 游戏状态
+    let myId = null;
+    let currentRoomId = null;
+    let myCharId = null; // 如果为null，则为观战者
+    let players = {};
+    let isDragging = false;
+    let dragOffset = {x:0, y:0};
+    let currentTurnId = null;
+    let isGameRunning = false;
 
-        let myId = null;
-        let myCharId = null;
-        let players = {};
-        let isDragging = false;
-        let dragOffset = { x: 0, y: 0 };
-        let gameActive = false;
-        let currentTurnId = null;
+    // 初始化
+    mapImg.onload = () => {
+        canvas.width = mapImg.width;
+        canvas.height = mapImg.height;
+        draw();
+    };
 
-        mapImg.onload = () => {
-            canvas.width = mapImg.width;
-            canvas.height = mapImg.height;
-            draw();
-        };
+    // --- Socket 事件 ---
 
-        socket.on('connect', () => { myId = socket.id; });
+    socket.on('connect', () => { myId = socket.id; });
 
-        socket.on('init', (data) => {
-            players = data.players;
-            updateLobby(data.takenChars);
-            updateScoreBoard(); // 初始化积分榜
-            if (data.gameStarted) switchToGameUI();
-            draw();
-        });
+    socket.on('err', (msg) => {
+        document.getElementById('login-msg').innerText = msg;
+    });
 
-        socket.on('updatePlayers', (serverPlayers) => {
-            players = serverPlayers;
-
-            const count = Object.keys(players).length;
-            const startBtn = document.getElementById('start-btn');
-            startBtn.disabled = count < 2;
-            startBtn.innerText = count >= 2 ? `开始游戏 (${count}人)` : `等待玩家 (${count}/5)`;
-
-            updateScoreBoard(); // 刷新积分榜
-            draw();
-        });
-
-        socket.on('takenChars', (list) => { updateLobby(list); });
-
-        socket.on('gameStarted', (data) => {
+    // 加入房间成功
+    socket.on('roomJoined', (data) => {
+        currentRoomId = data.roomId;
+        players = data.players;
+        isGameRunning = data.gameStarted;
+        
+        // UI切换
+        document.getElementById('login-screen').style.display = 'none';
+        document.getElementById('room-display').innerText = `房间号: ${currentRoomId}`;
+        
+        updateLobby(data.takenChars);
+        updateScoreBoard();
+        
+        if(isGameRunning) {
             switchToGameUI();
             updateTurn(data.currentTurn);
-        });
+            // 游戏中加入，强制显示观战提示
+            document.getElementById('controls').style.display = 'none';
+            document.getElementById('end-turn-btn').style.display = 'none';
+            document.getElementById('spectator-msg').style.display = 'block';
+            document.getElementById('spectator-hint').style.display = 'block';
+        }
+        
+        draw();
+    });
 
-        socket.on('diceRolled', (data) => {
-            const resultText = document.getElementById('dice-result');
-            resultText.innerText = `点数: ${data.details.join('+')} = ${data.roll}`;
-            if (data.player === myId) {
-                document.getElementById('end-turn-btn').disabled = false;
-                document.querySelectorAll('#controls button').forEach(b => b.disabled = true);
-            }
-        });
+    socket.on('updatePlayers', (serverPlayers) => {
+        players = serverPlayers;
+        const count = Object.keys(players).length;
+        
+        // 更新开始按钮 (只有参与游戏的玩家才能点开始，或者简化为谁都能点)
+        const startBtn = document.getElementById('start-btn');
+        if (myCharId) {
+            startBtn.disabled = count < 2;
+            startBtn.innerText = count >= 2 ? `开始游戏 (${count}人)` : `等待玩家 (${count}/5)`;
+        } else {
+            startBtn.disabled = true;
+            startBtn.innerText = `等待玩家开始 (${count}人已准备)`;
+        }
+        
+        updateScoreBoard();
+        draw();
+    });
 
-        socket.on('turnChanged', (data) => { updateTurn(data.currentTurn); });
+    socket.on('takenChars', (list) => { updateLobby(list); });
 
-        socket.on('playerMoved', (data) => {
-            if (players[data.id]) {
-                players[data.id].x = data.x;
-                players[data.id].y = data.y;
-                draw();
-            }
-        });
+    socket.on('gameStarted', (data) => {
+        isGameRunning = true;
+        switchToGameUI();
+        updateTurn(data.currentTurn);
+    });
 
-        socket.on('gameReset', () => { alert('玩家退出，游戏重置'); location.reload(); });
+    socket.on('diceRolled', (data) => {
+        const resultText = document.getElementById('dice-result');
+        resultText.innerText = `点数: ${data.details.join('+')} = ${data.roll}`;
+        if (data.player === myId) {
+            document.getElementById('end-turn-btn').disabled = false;
+            document.querySelectorAll('#controls button').forEach(b => b.disabled = true);
+        }
+    });
 
-        // --- 逻辑函数 ---
+    socket.on('turnChanged', (data) => { updateTurn(data.currentTurn); });
 
-        function selectChar(id) {
-            if (myCharId) return;
-            socket.emit('selectCharacter', id);
-            myCharId = id;
-            document.querySelectorAll('.char-btn').forEach(b => b.classList.remove('selected'));
-            document.getElementById(`btn-char-${id}`).classList.add('selected');
+    socket.on('playerMoved', (data) => {
+        if(players[data.id]) {
+            players[data.id].x = data.x;
+            players[data.id].y = data.y;
+            draw();
+        }
+    });
+
+    socket.on('gameReset', (msg) => { 
+        alert(msg); 
+        location.reload(); 
+    });
+
+    // --- 交互逻辑 ---
+
+    function doCreate() {
+        const r = document.getElementById('room-id').value;
+        const p = document.getElementById('room-pass').value;
+        if(!r) return alert('请输入房间号');
+        socket.emit('createRoom', { roomId: r, password: p });
+    }
+
+    function doJoin() {
+        const r = document.getElementById('room-id').value;
+        const p = document.getElementById('room-pass').value;
+        if(!r) return alert('请输入房间号');
+        socket.emit('joinRoom', { roomId: r, password: p });
+    }
+
+    function selectChar(id) {
+        if (myCharId) return; // 已经选过
+        if (isGameRunning) return; // 游戏开始后不能选
+        
+        socket.emit('selectCharacter', id);
+        myCharId = id;
+        
+        // 改变鼠标样式允许拖拽
+        canvas.style.cursor = 'grab';
+        
+        // 高亮选择
+        document.querySelectorAll('.char-btn').forEach(b => b.classList.remove('selected'));
+        document.getElementById(`btn-char-${id}`).classList.add('selected');
+    }
+
+    function updateLobby(takenList) {
+        const container = document.getElementById('char-list');
+        container.innerHTML = '';
+        
+        // 如果游戏已经开始且自己没选角色，隐藏列表显示提示
+        if(isGameRunning && !myCharId) {
+            container.innerHTML = '<p style="grid-column:1/-1; text-align:center; color:#999;">仅观战</p>';
+            return;
         }
 
-        function updateLobby(takenList) {
-            const container = document.getElementById('char-list');
-            container.innerHTML = '';
-            for (let i = 1; i <= 5; i++) {
-                const btn = document.createElement('div');
-                btn.className = `char-btn ${takenList.includes(i) && i !== myCharId ? 'taken' : ''}`;
-                btn.id = `btn-char-${i}`;
-                btn.innerHTML = `<img src="char${i}.png">`;
-                if (!takenList.includes(i) || i === myCharId) {
-                    btn.onclick = () => selectChar(i);
-                }
-                if (i === myCharId) btn.classList.add('selected');
-                container.appendChild(btn);
+        for(let i=1; i<=5; i++) {
+            const btn = document.createElement('div');
+            // 判断是否被占用
+            const isTaken = takenList.includes(i);
+            const isMe = (i === myCharId);
+            
+            btn.className = `char-btn ${isTaken && !isMe ? 'taken' : ''}`;
+            btn.id = `btn-char-${i}`;
+            btn.innerHTML = `<img src="char${i}.png">`;
+            
+            if ((!isTaken || isMe) && !isGameRunning) {
+                btn.onclick = () => selectChar(i);
             }
+            if (isMe) btn.classList.add('selected');
+            container.appendChild(btn);
+        }
+    }
+
+    function updateScoreBoard() {
+        const list = document.getElementById('score-list');
+        list.innerHTML = '';
+        const playerArr = Object.values(players).sort((a, b) => a.id.localeCompare(b.id));
+
+        if (playerArr.length === 0) {
+            list.innerHTML = '<div style="padding:10px; text-align:center; color:#999;">暂无玩家，你是观战者</div>';
+            return;
         }
 
-        // --- 新增：更新积分榜逻辑 ---
-        function updateScoreBoard() {
-            const list = document.getElementById('score-list');
-            list.innerHTML = '';
+        playerArr.forEach(p => {
+            const item = document.createElement('div');
+            item.className = 'score-item';
+            const isMe = (p.id === myId);
+            const nameSuffix = isMe ? ' (我)' : '';
+            
+            let ctrlHtml = '';
+            if (isMe) {
+                ctrlHtml = `<button class="btn btn-xs score-ctrl" onclick="modifyScore()">变动</button>`;
+            }
 
-            // 将玩家列表转为数组并按ID排序（保证列表顺序不乱跳）
-            const playerArr = Object.values(players).sort((a, b) => a.id.localeCompare(b.id));
-
-            playerArr.forEach(p => {
-                const item = document.createElement('div');
-                item.className = 'score-item';
-
-                // 如果是自己，名字加个 (我)
-                const isMe = (p.id === myId);
-                const nameSuffix = isMe ? ' (我)' : '';
-
-                // 只有自己显示操作按钮
-                let ctrlHtml = '';
-                if (isMe) {
-                    ctrlHtml = `<button class="btn btn-xs score-ctrl" onclick="modifyScore()">变动</button>`;
-                }
-
-                item.innerHTML = `
+            item.innerHTML = `
                 <img src="char${p.charId}.png">
                 <div class="score-info">
                     <div>玩家${p.charId}${nameSuffix}</div>
@@ -408,126 +330,145 @@
                 </div>
                 ${ctrlHtml}
             `;
-                list.appendChild(item);
-            });
-        }
+            list.appendChild(item);
+        });
+    }
 
-        // --- 新增：修改分数事件 ---
-        window.modifyScore = () => {
-            const input = prompt("请输入分数变动值 (例如: 200 或 -500):");
-            if (input) {
-                const amount = parseInt(input);
-                if (!isNaN(amount)) {
-                    socket.emit('changeScore', amount);
-                } else {
-                    alert("请输入有效的数字！");
+    window.modifyScore = () => {
+        if (!myCharId) return;
+        const input = prompt("输入分数变动 (如 200 或 -500):");
+        if (input) {
+            const amount = parseInt(input);
+            if (!isNaN(amount)) socket.emit('changeScore', amount);
+        }
+    };
+
+    document.getElementById('start-btn').onclick = () => { 
+        if(myCharId) socket.emit('startGame'); 
+    };
+
+    function switchToGameUI() {
+        document.getElementById('lobby-ui').style.display = 'none';
+        document.getElementById('game-ui').style.display = 'block';
+        
+        // 如果是观战者，隐藏操作区
+        if (!myCharId) {
+            document.getElementById('controls').style.display = 'none';
+            document.getElementById('end-turn-btn').style.display = 'none';
+            document.getElementById('spectator-msg').style.display = 'block';
+        }
+    }
+
+    function updateTurn(turnId) {
+        currentTurnId = turnId;
+        const isMyTurn = (myId === currentTurnId);
+        const indicator = document.getElementById('turn-indicator');
+        const diceRes = document.getElementById('dice-result');
+        const endBtn = document.getElementById('end-turn-btn');
+        
+        diceRes.innerText = '';
+        endBtn.disabled = true;
+        
+        // 按钮状态控制
+        const buttons = document.querySelectorAll('#controls button');
+        buttons.forEach(b => b.disabled = !isMyTurn);
+
+        if (!myCharId) {
+            // 观战视角
+            indicator.innerText = "👀 观战中...";
+            indicator.className = '';
+        } else if (isMyTurn) {
+            indicator.innerText = "👉 轮到你了！";
+            indicator.className = 'my-turn';
+        } else {
+            indicator.innerText = "⏳ 等待他人...";
+            indicator.className = '';
+        }
+        draw();
+    }
+
+    window.rollDice = (count) => { if(myCharId) socket.emit('rollDice', count); };
+    window.endTurn = () => { if(myCharId) socket.emit('endTurn'); };
+
+    // --- Canvas 绘制 ---
+
+    function draw() {
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        if (mapImg.complete) ctx.drawImage(mapImg, 0, 0);
+        
+        Object.values(players).forEach(p => {
+            const img = charImgs[p.charId];
+            if (img && img.complete) {
+                ctx.save();
+                ctx.beginPath();
+                ctx.arc(p.x + 40, p.y + 40, 45, 0, Math.PI * 2);
+                ctx.fillStyle = (p.id === myId) ? 'rgba(0, 255, 0, 0.5)' : 'rgba(255, 255, 255, 0.5)';
+                ctx.fill();
+                
+                if (p.id === currentTurnId) {
+                    ctx.strokeStyle = '#e91e63';
+                    ctx.lineWidth = 5;
+                    ctx.stroke();
                 }
+                
+                ctx.drawImage(img, p.x, p.y, 80, 80);
+                
+                ctx.fillStyle = "white";
+                ctx.font = "bold 20px Arial";
+                ctx.strokeStyle = "black";
+                ctx.lineWidth = 3;
+                ctx.strokeText(`${p.score||0}`, p.x + 20, p.y - 10);
+                ctx.fillText(`${p.score||0}`, p.x + 20, p.y - 10);
+                
+                ctx.restore();
             }
-        };
+        });
+    }
 
-        document.getElementById('start-btn').onclick = () => { socket.emit('startGame'); };
+    // --- 拖拽逻辑 (仅限玩家本人) ---
 
-        function switchToGameUI() {
-            gameActive = true;
-            document.getElementById('lobby-ui').style.display = 'none';
-            document.getElementById('game-ui').style.display = 'block';
+    canvas.onmousedown = (e) => {
+        if (!myCharId || !players[myId]) return; // 观战者无法拖拽
+        
+        const rect = canvas.getBoundingClientRect();
+        const scaleX = canvas.width / rect.width;
+        const scaleY = canvas.height / rect.height;
+        const mouseX = (e.clientX - rect.left) * scaleX;
+        const mouseY = (e.clientY - rect.top) * scaleY;
+
+        const p = players[myId];
+        if (mouseX >= p.x && mouseX <= p.x + 80 && mouseY >= p.y && mouseY <= p.y + 80) {
+            isDragging = true;
+            canvas.style.cursor = 'grabbing';
+            dragOffset.x = mouseX - p.x;
+            dragOffset.y = mouseY - p.y;
         }
+    };
 
-        function updateTurn(turnId) {
-            currentTurnId = turnId;
-            const isMyTurn = (myId === currentTurnId);
-            const indicator = document.getElementById('turn-indicator');
-            const diceRes = document.getElementById('dice-result');
-            const endBtn = document.getElementById('end-turn-btn');
+    canvas.onmousemove = (e) => {
+        if (!isDragging) return;
+        const rect = canvas.getBoundingClientRect();
+        const scaleX = canvas.width / rect.width;
+        const scaleY = canvas.height / rect.height;
+        const mouseX = (e.clientX - rect.left) * scaleX;
+        const mouseY = (e.clientY - rect.top) * scaleY;
 
-            diceRes.innerText = '';
-            endBtn.disabled = true;
+        const newX = mouseX - dragOffset.x;
+        const newY = mouseY - dragOffset.y;
 
-            const buttons = document.querySelectorAll('#controls button');
-            buttons.forEach(b => b.disabled = !isMyTurn);
+        players[myId].x = newX;
+        players[myId].y = newY;
+        draw();
+        socket.emit('movePlayer', { x: newX, y: newY });
+    };
 
-            if (isMyTurn) {
-                indicator.innerText = "👉 轮到你了！";
-                indicator.classList.add('my-turn');
-            } else {
-                indicator.innerText = "⏳ 等待他人...";
-                indicator.classList.remove('my-turn');
-            }
-            draw(); // 重绘以更新高亮圈
-        }
-
-        window.rollDice = (count) => { socket.emit('rollDice', count); };
-        window.endTurn = () => { socket.emit('endTurn'); };
-
-        function draw() {
-            ctx.clearRect(0, 0, canvas.width, canvas.height);
-            if (mapImg.complete) ctx.drawImage(mapImg, 0, 0);
-
-            Object.values(players).forEach(p => {
-                const img = charImgs[p.charId];
-                if (img && img.complete) {
-                    ctx.save();
-                    ctx.beginPath();
-                    ctx.arc(p.x + 40, p.y + 40, 45, 0, Math.PI * 2);
-                    ctx.fillStyle = (p.id === myId) ? 'rgba(0, 255, 0, 0.5)' : 'rgba(255, 255, 255, 0.5)';
-                    ctx.fill();
-                    if (p.id === currentTurnId) {
-                        ctx.strokeStyle = '#e91e63';
-                        ctx.lineWidth = 5;
-                        ctx.stroke();
-                    }
-                    ctx.drawImage(img, p.x, p.y, 80, 80);
-
-                    // 在头像上方绘制简单分数显示（可选）
-                    ctx.fillStyle = "white";
-                    ctx.font = "bold 20px Arial";
-                    ctx.strokeStyle = "black";
-                    ctx.lineWidth = 3;
-                    ctx.strokeText(`${p.score || 0}`, p.x + 20, p.y - 10);
-                    ctx.fillText(`${p.score || 0}`, p.x + 20, p.y - 10);
-
-                    ctx.restore();
-                }
-            });
-        }
-
-        canvas.onmousedown = (e) => {
-            if (!myCharId || !players[myId]) return;
-            const rect = canvas.getBoundingClientRect();
-            const scaleX = canvas.width / rect.width;
-            const scaleY = canvas.height / rect.height;
-            const mouseX = (e.clientX - rect.left) * scaleX;
-            const mouseY = (e.clientY - rect.top) * scaleY;
-
-            const p = players[myId];
-            if (mouseX >= p.x && mouseX <= p.x + 80 && mouseY >= p.y && mouseY <= p.y + 80) {
-                isDragging = true;
-                dragOffset.x = mouseX - p.x;
-                dragOffset.y = mouseY - p.y;
-            }
-        };
-
-        canvas.onmousemove = (e) => {
-            if (!isDragging) return;
-            const rect = canvas.getBoundingClientRect();
-            const scaleX = canvas.width / rect.width;
-            const scaleY = canvas.height / rect.height;
-            const mouseX = (e.clientX - rect.left) * scaleX;
-            const mouseY = (e.clientY - rect.top) * scaleY;
-            const newX = mouseX - dragOffset.x;
-            const newY = mouseY - dragOffset.y;
-
-            players[myId].x = newX;
-            players[myId].y = newY;
-            draw();
-            socket.emit('movePlayer', { x: newX, y: newY });
-        };
-
-        canvas.onmouseup = () => { isDragging = false; };
-
-        function loop() { requestAnimationFrame(loop); }
-        loop();
-    </script>
+    canvas.onmouseup = () => { 
+        isDragging = false; 
+        if (myCharId) canvas.style.cursor = 'grab';
+    };
+    
+    function loop() { requestAnimationFrame(loop); }
+    loop();
+</script>
 </body>
-
 </html>
